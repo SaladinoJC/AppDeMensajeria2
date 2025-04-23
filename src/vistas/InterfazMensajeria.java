@@ -113,6 +113,19 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
         add(panelMensajes, BorderLayout.CENTER);
 
         getContentPane().setBackground(Color.DARK_GRAY);
+        
+        areaTextoMensaje.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "enviarMensaje");
+        areaTextoMensaje.getActionMap().put("enviarMensaje", new AbstractAction() {
+            private static final long serialVersionUID = 1L;
+			@Override
+            public void actionPerformed(ActionEvent e) {
+                if (controlador != null) {
+                    controlador.actionPerformed(new ActionEvent(botonEnviar, ActionEvent.ACTION_PERFORMED, ENVIARMENSAJE));
+                }
+            }
+        });
+
+        
         setVisible(true);
     }
 
@@ -265,6 +278,8 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
                     usuario.agregarChat(nuevoChat);
                     usuario.agregarContacto(nuevoContacto);
                     modeloContactos.addElement(nombre);
+                    listaContactos.setSelectedValue(nombre, true); // Seleccionar el nuevo contacto
+                    areaTextoMensaje.requestFocusInWindow(); // Seleccionar el área de mensajes
                     dialog.dispose();
                 } catch (NumberFormatException ex) {
                     JOptionPane.showMessageDialog(dialog, "El puerto debe ser un número entero.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -301,7 +316,7 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
 
             // Volumen al 50% (aproximadamente -6 dB)
             FloatControl volume = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-            volume.setValue(-6.0f);
+            volume.setValue(-15.0f);
 
             clip.start();
         } catch (Exception e) {

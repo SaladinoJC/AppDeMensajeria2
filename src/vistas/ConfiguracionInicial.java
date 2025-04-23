@@ -28,6 +28,9 @@ public class ConfiguracionInicial extends JFrame {
         JButton iniciarBtn = new JButton("Iniciar");
         iniciarBtn.addActionListener(e -> iniciarAplicacion());
         add(iniciarBtn);
+        
+        nicknameField.addActionListener(e -> iniciarAplicacion());
+        puertoField.addActionListener(e -> iniciarAplicacion());
 
         setVisible(true);
     }

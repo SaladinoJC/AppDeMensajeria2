@@ -29,7 +29,12 @@ public class Servidor extends JFrame {
         logArea = new JTextArea();
         logArea.setEditable(false);
         add(new JScrollPane(logArea), BorderLayout.CENTER);
-
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int screenWidth = screenSize.width;
+        int screenHeight = screenSize.height;
+        int x = screenWidth - getWidth(); // A la derecha
+        int y = (screenHeight - getHeight()) / 2; // Centrado verticalmente
+        setLocation(x, y);
         setVisible(true);
         
         
