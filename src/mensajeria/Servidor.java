@@ -50,7 +50,7 @@ public class Servidor extends JFrame {
                 manejarRegistros(usuario);
             }
         } catch (Exception e) {
-            log("Error al iniciar el servidor: " + e.getMessage());
+            log("Error al iniciar el servidor de registros, linea 53: " + e.getMessage());
         }
     }
     
@@ -66,7 +66,7 @@ public class Servidor extends JFrame {
                 socketCliente.close();
             }
         } catch (IOException | ClassNotFoundException e) {
-            log("Error al iniciar el servidor: " + e.getMessage());
+            log("Error al iniciar el servidor de mensajes, linea 69: " + e.getMessage());
         }
     }
     private void iniciarServidorDirectorio(int puerto) {}
@@ -79,7 +79,7 @@ public class Servidor extends JFrame {
             out.flush();
             out.writeObject(mensaje);
             out.close();
-            log("llego el mensaje" + mensaje.getContenido());
+            //log("Mensaje enviado: " + mensaje.getContenido());
         } catch (IOException e) {
         		this.MapPendientes.get(mensaje.getNicknameDestinatario()).addLast(mensaje);
         }
@@ -95,10 +95,10 @@ public class Servidor extends JFrame {
                 if (!directorioUsuarios.containsKey(nickname)) {
                     // Registrar al cliente como conectado
                     directorioUsuarios.put(nickname, usuario);
-                    log("Usuario registrado: " + nickname);
+                    log("Usuario registrado y logueado: " + nickname + ", en el puerto " + usuario.getPuerto());
                     this.MapPendientes.put(nickname, new LinkedList<Mensaje>());
                 } else {
-                    log("Cliente ya registrado: " + nickname);
+                    log("Usuario Logueado: " + nickname + ", en el puerto " + usuario.getPuerto());
                     enviarMensajesPendientes(nickname);
                 }
             } 
@@ -110,7 +110,7 @@ public class Servidor extends JFrame {
             LinkedList<Mensaje> pendientes = MapPendientes.get(nickname);
             while (!pendientes.isEmpty()) {
             	Mensaje mensaje = pendientes.getFirst();
-            	log("el mensaje sacado de la lista es" + mensaje.getContenido());
+            	//log("el mensaje sacado de la lista es " + mensaje.getContenido());
                 
                           
                 try {
@@ -119,7 +119,7 @@ public class Servidor extends JFrame {
                     out.flush();
                     out.writeObject(mensaje);
                     out.close();
-                    log("llego el mensaje" + mensaje.getContenido());
+                    //log("llego el mensaje" + mensaje.getContenido());
                 } catch (IOException e) {
                 		this.MapPendientes.get(mensaje.getNicknameDestinatario()).addLast(mensaje);
                 }

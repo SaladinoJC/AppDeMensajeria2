@@ -55,6 +55,11 @@ public class ConfiguracionInicial extends JFrame {
         Usuario usuario = new Usuario(nickname, puerto);
         dispose();
         try {
+        	// Crear la vista y el controlador con los objetos correspondientes
+            InterfazMensajeria vista = new InterfazMensajeria(usuario);
+            Controlador controlador = new Controlador(vista, usuario);
+            vista.setControlador(controlador);
+            vista.setVisible(true);
             // Conectar al servidor
             Socket socket = new Socket("localhost", 10001); // o la IP del servidor
             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
@@ -62,11 +67,7 @@ public class ConfiguracionInicial extends JFrame {
             // Enviar mensaje inicial de conexión al servidor
             out.writeObject(usuario);
 
-            // Crear la vista y el controlador con los objetos correspondientes
-            InterfazMensajeria vista = new InterfazMensajeria(usuario);
-            Controlador controlador = new Controlador(vista, usuario);
-            vista.setControlador(controlador);
-            vista.setVisible(true);
+            
 
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "No se pudo conectar al servidor: " + e.getMessage(),
