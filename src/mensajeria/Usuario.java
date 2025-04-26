@@ -5,13 +5,15 @@ import java.util.*;
 
 
 public class Usuario implements Serializable{
-	 private String nickname;
+		private String nickname;
 	    private int puerto;
+	    private String direccionIP;
 	    private HashMap<String, Contacto> agenda;
 	    private HashMap<String, Chat> conversaciones;
 
-		public Usuario(String nickname, int puerto) {
+		public Usuario(String nickname, int puerto, String direccionIP) {
 	        this.nickname = nickname; 
+	        this.direccionIP = direccionIP;
 	        this.puerto = puerto;
 	        this.agenda = new HashMap<>();
 	        this.conversaciones = new HashMap<>();

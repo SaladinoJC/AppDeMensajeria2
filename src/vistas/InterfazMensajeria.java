@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.URL;
+import java.util.Map;
 
 import javax.sound.sampled.*;
 
@@ -202,7 +203,7 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
         }
     }
 
-    public void abrirVentanaAgregarContacto() {
+    public void abrirVentanaAgregarContacto(Map<String, Usuario> listaNicknames) {
         JDialog dialog = new JDialog(this, "Nuevo Contacto", true);
         dialog.setSize(400, 220);
         dialog.setLocationRelativeTo(this);

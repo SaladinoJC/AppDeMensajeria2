@@ -9,11 +9,13 @@ import mensajeria.Usuario;
 public class Servidor extends JFrame {
 
     private JTextArea logArea;
+    
     private final Map<String, Usuario> directorioUsuarios = new HashMap<>();
     private final Map<String, LinkedList <Mensaje>> MapPendientes = new HashMap<>();
     private int puertoMensajes = 10000;
     private int puertoRegistros = 10001;
     private int puertoDirectorio = 10002;
+    private String ip;
 
     private ServerSocket serverSocketRegistros;
     private ServerSocket serverSocketMensajes;
@@ -49,13 +51,13 @@ public class Servidor extends JFrame {
             serverSocketRegistros = new ServerSocket(puerto);
             log("Servidor de registros iniciado en el puerto " + puerto);
             while (true) {
-                Socket socketCliente = serverSocketRegistros.accept();
-                ObjectInputStream in = new ObjectInputStream(socketCliente.getInputStream());
+                Socket socketRegistros = serverSocketRegistros.accept();
+                ObjectInputStream in = new ObjectInputStream(socketRegistros.getInputStream());
                 Usuario usuario = (Usuario) in.readObject();
                 manejarRegistros(usuario);
             }
         } catch (Exception e) {
-            log("Error al iniciar el servidor de registros, linea 53: " + e.getMessage());
+            log("Error al iniciar el servidor de registros, linea 49: " + e.getMessage());
         }
     }
     
@@ -64,17 +66,32 @@ public class Servidor extends JFrame {
             serverSocketMensajes = new ServerSocket(puerto); 
             log("Servidor de Mensajes iniciado en el puerto " + puerto);
             while (true) {
-                Socket socketCliente = serverSocketMensajes.accept();
-                ObjectInputStream in = new ObjectInputStream(socketCliente.getInputStream());
+                Socket socketMensajes = serverSocketMensajes.accept();
+                ObjectInputStream in = new ObjectInputStream(socketMensajes.getInputStream());
         		Mensaje mensaje = (Mensaje) in.readObject();
                 manejarMensajes(mensaje);
-                socketCliente.close();
             }
         } catch (IOException | ClassNotFoundException e) {
-            log("Error al iniciar el servidor de mensajes, linea 69: " + e.getMessage());
+            log("Error al iniciar el servidor de mensajes, linea 64: " + e.getMessage());
         }
     }
-    private void iniciarServidorDirectorio(int puerto) {}
+    
+    
+    private void iniciarServidorDirectorio(int puerto) {
+    	try {
+            serverSocketDirectorio = new ServerSocket(puerto); 
+            log("Servidor de Directorio iniciado en el puerto " + puerto);
+            while (true) {
+                Socket socketRecibePedido = serverSocketMensajes.accept();
+                ObjectOutputStream out = new ObjectOutputStream(socketRecibePedido.getOutputStream());
+                out.flush();
+                out.writeObject(this.directorioUsuarios);
+                out.close();
+            }
+        } catch (IOException e) {
+            log("Error al iniciar el servidor de directorio, linea 80: " + e.getMessage());
+        }
+    }
 
     
     private void manejarMensajes(Mensaje mensaje) {
@@ -88,8 +105,7 @@ public class Servidor extends JFrame {
         } catch (IOException e) {
         		this.MapPendientes.get(mensaje.getNicknameDestinatario()).addLast(mensaje);
         }
-     
-    	
+     	
     }
     
     private void manejarRegistros(Usuario usuario) {
@@ -109,8 +125,6 @@ public class Servidor extends JFrame {
             } 
         } 
             
-     
-
     private void enviarMensajesPendientes(String nickname) {
             LinkedList<Mensaje> pendientes = MapPendientes.get(nickname);
             while (!pendientes.isEmpty()) {
