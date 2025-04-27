@@ -1,28 +1,26 @@
 package mensajeria;
+
 import javax.swing.*;
 import java.awt.*;
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import mensajeria.Usuario;
 
+@SuppressWarnings("serial")
 public class Servidor extends JFrame {
 
     private JTextArea logArea;
-    
+
     private final Map<String, Usuario> directorioUsuarios = new HashMap<>();
-    private final Map<String, LinkedList <Mensaje>> MapPendientes = new HashMap<>();
+    private final Map<String, LinkedList<Mensaje>> MapPendientes = new HashMap<>();
     private int puertoMensajes = 10000;
     private int puertoRegistros = 10001;
     private int puertoDirectorio = 10002;
-    private String ip;
-    private final Map<String, Object> locks = new HashMap<>(); // Para sincronizar por usuario
     private ServerSocket serverSocketRegistros;
     private ServerSocket serverSocketMensajes;
     private ServerSocket serverSocketDirectorio;
 
     public Servidor() {
-    	
         setTitle("Servidor de Mensajería");
         setSize(500, 400);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -31,6 +29,7 @@ public class Servidor extends JFrame {
         logArea = new JTextArea();
         logArea.setEditable(false);
         add(new JScrollPane(logArea), BorderLayout.CENTER);
+
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         int screenWidth = screenSize.width;
         int screenHeight = screenSize.height;
@@ -38,9 +37,8 @@ public class Servidor extends JFrame {
         int y = (screenHeight - getHeight()) / 2; // Centrado verticalmente
         setLocation(x, y);
         setVisible(true);
-        
-        
-        // Iniciar el servidor en un hilo aparte
+
+        // Inicia los servidores en hilos aparte
         new Thread(() -> iniciarServidorMensajes(puertoMensajes)).start();
         new Thread(() -> iniciarServidorRegistros(puertoRegistros)).start();
         new Thread(() -> iniciarServidorDirectorio(puertoDirectorio)).start();
@@ -57,109 +55,114 @@ public class Servidor extends JFrame {
                 manejarRegistros(usuario);
             }
         } catch (Exception e) {
-            log("Error al iniciar el servidor de registros, linea 49: " + e.getMessage());
+            log("Error al iniciar el servidor de registros, línea 49: " + e.getMessage());
         }
     }
-    
+
     private void iniciarServidorMensajes(int puerto) {
-    	try {
-            serverSocketMensajes = new ServerSocket(puerto); 
+        try {
+            serverSocketMensajes = new ServerSocket(puerto);
             log("Servidor de Mensajes iniciado en el puerto " + puerto);
             while (true) {
                 Socket socketMensajes = serverSocketMensajes.accept();
                 ObjectInputStream in = new ObjectInputStream(socketMensajes.getInputStream());
-        		Mensaje mensaje = (Mensaje) in.readObject();
+                Mensaje mensaje = (Mensaje) in.readObject();
                 manejarMensajes(mensaje);
             }
         } catch (IOException | ClassNotFoundException e) {
-            log("Error al iniciar el servidor de mensajes, linea 64: " + e.getMessage());
+            log("Error al iniciar el servidor de mensajes, línea 64: " + e.getMessage());
         }
     }
-    
-    
+
     private void iniciarServidorDirectorio(int puerto) {
-    	try {
-            serverSocketDirectorio = new ServerSocket(puerto); 
+        try {
+            serverSocketDirectorio = new ServerSocket(puerto);
             log("Servidor de Directorio iniciado en el puerto " + puerto);
             while (true) {
                 Socket socketRecibePedido = serverSocketDirectorio.accept();
-                //log("estoy aceptando el socket de directorio");
                 ObjectOutputStream out = new ObjectOutputStream(socketRecibePedido.getOutputStream());
                 out.flush();
                 out.writeObject(this.directorioUsuarios);
                 out.close();
             }
         } catch (IOException e) {
-            log("Error al iniciar el servidor de directorio, linea 92: " + e.getMessage());
+            log("Error al iniciar el servidor de directorio, línea 92: " + e.getMessage());
         }
     }
 
-    
     private void manejarMensajes(Mensaje mensaje) {
         new Thread(() -> {
+            Socket socket2 = null;
+            ObjectOutputStream out = null;
             try {
-                Socket socket2 = new Socket(mensaje.getIpDestinatario(), mensaje.getPuertoDestinatario());
-                ObjectOutputStream out = new ObjectOutputStream(socket2.getOutputStream());
+                socket2 = new Socket(mensaje.getIpDestinatario(), mensaje.getPuertoDestinatario());
+                out = new ObjectOutputStream(socket2.getOutputStream());
                 out.flush();
                 out.writeObject(mensaje);
-                out.close();
-                // log("Mensaje enviado: " + mensaje.getContenido());
             } catch (IOException e) {
                 synchronized (this) {
                     this.MapPendientes.get(mensaje.getNicknameDestinatario()).addLast(mensaje);
-                   // log("La lista de pendientes es " + this.MapPendientes);
+                }
+            } finally {
+                // Cierra los recursos
+                try {
+                    if (out != null) {
+                        out.close();
+                    }
+                    if (socket2 != null && !socket2.isClosed()) {
+                        socket2.close();
+                    }
+                } catch (IOException e) {
+                    log("Error al cerrar los recursos: " + e.getMessage());
                 }
             }
         }).start();
     }
-    
-    
+
     private void manejarRegistros(Usuario usuario) {
-         {
-            // Leer el primer mensaje que contiene la información del cliente
-            String nickname = usuario.getNickname();
-                // Si el remitente está registrado en la lista de conectados, no es un registro, sino un mensaje
-                if (!directorioUsuarios.containsKey(nickname)) {
-                    // Registrar al cliente como conectado
-                    directorioUsuarios.put(nickname, usuario);
-                    log("Usuario registrado y logueado: " + nickname + ", en el puerto " + usuario.getPuerto());
-                    this.MapPendientes.put(nickname, new LinkedList<Mensaje>());
-                } else {
-                    log("Usuario Logueado: " + nickname + ", en el puerto " + usuario.getPuerto());
-                    enviarMensajesPendientes(nickname);
-                }
-            } 
-        } 
-            
+        String nickname = usuario.getNickname();
+        if (!directorioUsuarios.containsKey(nickname)) {
+            directorioUsuarios.put(nickname, usuario);
+            log("Usuario registrado y logueado: " + nickname + ", en el puerto " + usuario.getPuerto());
+            this.MapPendientes.put(nickname, new LinkedList<Mensaje>());
+        } else {
+            log("Usuario Logueado: " + nickname + ", en el puerto " + usuario.getPuerto());
+            enviarMensajesPendientes(nickname);
+        }
+    }
+
     private void enviarMensajesPendientes(String nickname) {
-            LinkedList<Mensaje> pendientes = MapPendientes.get(nickname);
-            if (pendientes==null) return;
-            synchronized(pendientes) {
+        LinkedList<Mensaje> pendientes = MapPendientes.get(nickname);
+        if (pendientes == null) return;
+
+        synchronized (pendientes) {
             while (!pendientes.isEmpty()) {
-            	Mensaje mensaje = pendientes.getFirst();
-            	//log("el mensaje sacado de la lista es " + mensaje.getContenido());    
+                Mensaje mensaje = pendientes.getFirst();
+                Socket socket2 = null;
+                ObjectOutputStream out = null;
                 try {
-                    Socket socket2 = new Socket(mensaje.getIpDestinatario(), mensaje.getPuertoDestinatario());
-                    ObjectOutputStream out = new ObjectOutputStream(socket2.getOutputStream());
+                    socket2 = new Socket(mensaje.getIpDestinatario(), mensaje.getPuertoDestinatario());
+                    out = new ObjectOutputStream(socket2.getOutputStream());
                     out.flush();
                     out.writeObject(mensaje);
-                    out.close();
-                    //log("llego el mensaje" + mensaje.getContenido());
                 } catch (IOException e) {
-                		log("entro a la excepcion");
-                		//this.MapPendientes.get(mensaje.getNicknameDestinatario()).addLast(mensaje);
+                    log("Error al enviar mensaje pendiente");
+                } finally {
+                    // Cierra los recursos
+                    try {
+                        if (out != null) {
+                            out.close();
+                        }
+                        if (socket2 != null && !socket2.isClosed()) {
+                            socket2.close();
+                        }
+                    } catch (IOException e) {
+                        log("Error al cerrar los recursos: " + e.getMessage());
+                    }
                 }
-                //try {
-					//Thread.sleep(800);
-				//} catch (InterruptedException e) {
-				//	// TODO Auto-generated catch block
-				//	e.printStackTrace();
-				//}
-
                 pendientes.removeFirst();
             }
-            }
-       
+        }
     }
 
     private void log(String mensaje) {

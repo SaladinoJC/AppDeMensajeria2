@@ -7,6 +7,7 @@ import mensajeria.Usuario;
 
 import java.awt.*;
 
+@SuppressWarnings("serial")
 public class ConfiguracionInicial extends JFrame {
     private JTextField nicknameField;
     private JTextField puertoField;
@@ -54,36 +55,52 @@ public class ConfiguracionInicial extends JFrame {
             JOptionPane.showMessageDialog(this, "Ingrese un puerto válido (1024-65535 y disponible).", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
+        
         InetAddress direccion = null;
-		try {
-			direccion = InetAddress.getLocalHost();
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+        try {
+            direccion = InetAddress.getLocalHost();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
         String ip = direccion.getHostAddress();
         Usuario usuario = new Usuario(nickname, puerto, ip);
         dispose();
+
+        Socket socket = null;
+        ObjectOutputStream out = null;
+
         try {
-        	// Crear la vista y el controlador con los objetos correspondientes
+            // Crear la vista y el controlador con los objetos correspondientes
             InterfazMensajeria vista = new InterfazMensajeria(usuario);
             Controlador controlador = new Controlador(vista, usuario);
             vista.setControlador(controlador);
             vista.setVisible(true);
+
             // Conectar al servidor
-            Socket socket = new Socket("localhost", 10001); // o la IP del servidor
-            ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+            socket = new Socket("localhost", 10001); // o la IP del servidor
+            out = new ObjectOutputStream(socket.getOutputStream());
 
             // Enviar mensaje inicial de conexión al servidor
             out.writeObject(usuario);
 
-            
-
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "No se pudo conectar al servidor: " + e.getMessage(),
                     "Error de conexión", JOptionPane.ERROR_MESSAGE);
+        } finally {
+            // Asegurarse de cerrar los recursos (Socket y ObjectOutputStream)
+            try {
+                if (out != null) {
+                    out.close();
+                }
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
+
 
     private boolean puertoDisponible(int puerto) {
         try (ServerSocket serverSocket = new ServerSocket(puerto)) {
