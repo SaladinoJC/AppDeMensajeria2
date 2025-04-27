@@ -1,6 +1,10 @@
-package mensajeria;
+package servidor;
 
 import javax.swing.*;
+
+import mensajeria.Mensaje;
+import mensajeria.Usuario;
+
 import java.awt.*;
 import java.io.*;
 import java.net.*;

@@ -2,12 +2,16 @@ package vistas;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;
+
+import controlador.Controlador;
+
 import javax.sound.sampled.*;
 
 import mensajeria.Chat;
 import mensajeria.Contacto;
 import mensajeria.Mensaje;
 import mensajeria.Usuario;
+
 
 import java.awt.*;
 import java.awt.event.*;
@@ -18,8 +22,6 @@ import java.util.Map;
 
 @SuppressWarnings("serial")
 public class InterfazMensajeria extends JFrame implements InterfazVista {
-    
-    private Usuario usuario;
     private DefaultListModel<String> modeloContactos;
     private JList<String> listaContactos;
     private JTextArea areaMensajes;
@@ -29,7 +31,6 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
     private Controlador controlador;
 
     public InterfazMensajeria(Usuario usuario) {
-        this.usuario = usuario;
         setTitle(usuario.getNickname() + " - Puerto " + usuario.getPuerto());
         setSize(600, 400);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -66,7 +67,7 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
                             // Buscar el contacto correspondiente para saber el nombre personalizado
                             Contacto c = usuario.buscaContactoPorNombre(m.getNicknameRemitente());
                             String nombreParaMostrar = (c != null) ? c.getNombre() : m.getNicknameRemitente();
-                            areaMensajes.append(nombreParaMostrar + ": " + m.getContenido() + "\n");
+                            areaMensajes.append(nombreParaMostrar +": " + m.getContenido() + "  " + m.getTimestamp().getHours() +":"+ m.getTimestamp().getMinutes() + "\n");
                         }
                     }
                 }
@@ -133,15 +134,13 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
         setVisible(true);
     }
 
-    public void formarMensaje() {
+    public void formarMensaje(Usuario usuario) {
         String contenido = areaTextoMensaje.getText();
         if (!contenido.isEmpty()) {
             String contactoSeleccionado = listaContactos.getSelectedValue();
             if (contactoSeleccionado != null) {
                 contactoSeleccionado = contactoSeleccionado.replace(" (nuevo)", "");
-                enviarMensaje(contenido, contactoSeleccionado);
-                areaMensajes.append(usuario.getNickname() +": " + contenido + "\n");
-                areaTextoMensaje.setText("");
+                enviarMensaje(contenido, contactoSeleccionado, usuario);
             } else {
                 JOptionPane.showMessageDialog(
                     this, "Por favor, selecciona un contacto.",
@@ -151,7 +150,7 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
         }
     }
 
-    public void recibirMensaje(Mensaje mensaje, Socket soc) {
+    public void recibirMensaje(Mensaje mensaje, Socket soc, Usuario usuario) {
         String remitente = mensaje.getNicknameRemitente();
         String contactoSeleccionado = listaContactos.getSelectedValue();
 
@@ -171,9 +170,8 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
 
         usuario.agregarMensaje(mensaje, contacto.getNombre());
 
-        if (contactoSeleccionado != null
-                && contactoSeleccionado.replace(" (nuevo)", "").equals(contacto.getNombre())) {
-            areaMensajes.append(contacto.getNombre() + ": " + mensaje.getContenido() + "\n");
+        if (contactoSeleccionado != null && contactoSeleccionado.replace(" (nuevo)", "").equals(contacto.getNombre())) {
+        	areaMensajes.append(contacto.getNombre() +": " + mensaje.getContenido() + "  " + mensaje.getTimestamp().getHours() +":"+ mensaje.getTimestamp().getMinutes() + "\n");
         } else {
             reproducirSonido(); // Usar la ruta relativa dentro del .jar
             boolean encontrado = false;
@@ -193,7 +191,7 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
         }
     }
 
-    private void enviarMensaje(String contenidoMensaje, String contacto) {
+    private void enviarMensaje(String contenidoMensaje, String contacto, Usuario usuario) {
         try {
             Contacto contactoDestino = usuario.buscaContactoPorNombre(contacto);
             Mensaje mensaje = new Mensaje(
@@ -204,6 +202,10 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
                 contactoDestino.getPuerto(),
                 contactoDestino.getNickname()
             );
+            
+            areaMensajes.append(usuario.getNickname() +": " + contenidoMensaje + "  " + mensaje.getTimestamp().getHours() +":"+ mensaje.getTimestamp().getMinutes() + "\n");
+            areaTextoMensaje.setText("");
+            
             Socket socket = new Socket("localhost", 10000);
             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
             out.flush();
@@ -220,7 +222,7 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
         }
     }
 
-    public void abrirVentanaAgregarContacto(Map<String, Usuario> listaNicknames) {
+    public void abrirVentanaAgregarContacto(Map<String, Usuario> listaNicknames, Usuario usuario) {
         JDialog dialog = new JDialog(this, "Directorio de Usuarios", true);
         dialog.setSize(400, 300);
         dialog.setLocationRelativeTo(this);

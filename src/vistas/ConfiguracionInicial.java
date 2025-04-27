@@ -3,6 +3,7 @@ import java.io.*;
 import java.net.*;
 import javax.swing.*;
 
+import controlador.Controlador;
 import mensajeria.Usuario;
 
 import java.awt.*;
