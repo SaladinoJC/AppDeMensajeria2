@@ -8,6 +8,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.swing.JOptionPane;
@@ -30,11 +31,10 @@ public class Controlador implements ActionListener {
 		this.vistaPrincipal = vistaPrincipal;
 		// Iniciar el servidor en un hilo separado
 		this.iniciarRecibeMensajes();
-		this.iniciarRecibeListaNickname();
 	}
 
     // Método para iniciar el hilo que escucha mensajes
-    private void iniciarRecibeMensajes() {
+	private void iniciarRecibeMensajes() {
 	    escuchando = true;
 	    hiloReceptorMensajes = new Thread(() -> {
 	        try {
@@ -42,8 +42,10 @@ public class Controlador implements ActionListener {
 	            while (escuchando) {
 	                Socket socketRecibeMensaje = serverSocketMensajes.accept();
 	                ObjectInputStream input = new ObjectInputStream(socketRecibeMensaje.getInputStream());
-	                Mensaje mensaje = (Mensaje) input.readObject();
-	                this.vistaPrincipal.recibirMensaje(mensaje, socketRecibeMensaje);
+	                
+	                Object recibido = input.readObject(); // leemos el objeto genérico
+	                    Mensaje mensaje = (Mensaje) recibido;
+	                    this.vistaPrincipal.recibirMensaje(mensaje, socketRecibeMensaje);
 	            }
 	        } catch (Exception e) {
 	            if (escuchando) e.printStackTrace(); // solo si no fue cerrado intencionalmente
@@ -51,45 +53,18 @@ public class Controlador implements ActionListener {
 	    });
 	    hiloReceptorMensajes.start();
 	}
-    
-    // Método para iniciar el hilo que escucha el envio del directorio del servidor
-    private void iniciarRecibeListaNickname() {
-    	escuchando = true;
-    	hiloReceptorListaNickname = new Thread(() -> {
- 	        try {
- 	            ServerSocket serverSocketLista = new ServerSocket(10000);
- 	            while (escuchando) {
- 	                Socket socketRecibeMensaje = serverSocketLista.accept();
- 	                ObjectInputStream input = new ObjectInputStream(socketRecibeMensaje.getInputStream());
- 	                Map<String, Usuario> listaNicknames =  (Map<String, Usuario>) input.readObject();
- 	                this.vistaPrincipal.abrirVentanaAgregarContacto(listaNicknames);
- 	            }
- 	           serverSocketLista.close();
- 	        } catch (Exception e) {
- 	            if (escuchando) e.printStackTrace(); // solo si no fue cerrado intencionalmente
- 	        }
- 	    });
-    	hiloReceptorListaNickname.start();
-    }
-    
-    // Método para enviar mensaje al servidor
-   // public void enviarMensaje(Mensaje mensaje) {
-     //   try {
-       //     output.writeObject(mensaje);  // Enviar el mensaje al servidor
-      //  } catch (Exception e) {
-      //      e.printStackTrace();
-     //   }
-  //  }
-
     @Override
     public void actionPerformed(ActionEvent e) {
         if(e.getActionCommand().equalsIgnoreCase(InterfazVista.ABRIRVENTAGREGARCONTACTO)) {
         	 try {
+        		 //System.out.println("entro al try");
         		 Socket socket = new Socket("localhost", 10002);
-                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-                 out.flush();
-                 out.writeObject(null);
-                 out.close();
+        		 ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+        		 @SuppressWarnings("unchecked")
+				HashMap<String, Usuario> directorioUsuarios = (HashMap<String, Usuario>) in.readObject();
+                 //System.out.println("Recibi el directorioUsuarios del servidor");
+                 this.vistaPrincipal.abrirVentanaAgregarContacto(directorioUsuarios);
+                 in.close();
                  socket.close();
              } catch (Exception ex) {
                  JOptionPane.showMessageDialog(this.vistaPrincipal, "Error al pedir la lista de usuarios registrados en el servidos.", "Lista de usuarios registrados en el servidos.", JOptionPane.ERROR_MESSAGE);

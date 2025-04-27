@@ -54,8 +54,15 @@ public class ConfiguracionInicial extends JFrame {
             JOptionPane.showMessageDialog(this, "Ingrese un puerto válido (1024-65535 y disponible).", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-
-        Usuario usuario = new Usuario(nickname, puerto);
+        InetAddress direccion = null;
+		try {
+			direccion = InetAddress.getLocalHost();
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        String ip = direccion.getHostAddress();
+        Usuario usuario = new Usuario(nickname, puerto, ip);
         dispose();
         try {
         	// Crear la vista y el controlador con los objetos correspondientes

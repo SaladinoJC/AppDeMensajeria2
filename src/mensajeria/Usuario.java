@@ -28,7 +28,17 @@ public class Usuario implements Serializable{
 	    }
 	    
 	    public void agregarMensaje(Mensaje mensaje, String contactoDestino) {
-	    	conversaciones.get(contactoDestino).agregarMensaje(mensaje);
+	    	Chat chat = conversaciones.get(contactoDestino);
+	        if (chat == null) {
+	            Contacto contacto = agenda.get(contactoDestino);
+	            if (contacto == null) {
+	                // Si no está en la agenda, no podés crear el chat, deberías manejarlo de algún modo
+	                return;
+	            }
+	            chat = new Chat(contacto);
+	            conversaciones.put(contactoDestino, chat);
+	        }
+	        chat.agregarMensaje(mensaje);
 	    }
 
 	    public HashMap<String, Chat> getConversaciones() {
@@ -54,16 +64,26 @@ public class Usuario implements Serializable{
 		public void setPuerto(int puerto) {
 			this.puerto = puerto;
 		}
+		
+		public String getIp() {
+			return direccionIP;
+		}
 
 		@Override
 		public String toString() {
 			return  nickname + ", puerto = " + puerto;
 		}
 
-		public Contacto buscaContacto(String contacto) {
-			return this.agenda.get(contacto);
-		}
 	    
+		public Contacto buscaContactoPorNombre(String nombre) {
+			for (Contacto contacto : agenda.values()) {
+		        if (contacto.getNombre().equals(nombre)) {
+		            return contacto;
+		        }
+		    }
+		    return null; // Si no lo encuentra
+		}
+		
 		public Chat buscaChat(String nombreContacto) {
 		    return conversaciones.get(nombreContacto);
 		}

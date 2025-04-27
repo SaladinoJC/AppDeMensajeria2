@@ -67,7 +67,10 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
                     areaMensajes.setText("");
                     if (chat != null) {
                         for (Mensaje m : chat.getMensajes()) {
-                            areaMensajes.append(m.getNicknameRemitente() + ": " + m.getContenido() + "\n");
+                        	// BUSCAR el contacto correspondiente para saber el nombre personalizado
+                            Contacto c = usuario.buscaContactoPorNombre(m.getNicknameRemitente());
+                            String nombreParaMostrar = (c != null) ? c.getNombre() : m.getNicknameRemitente();
+                            areaMensajes.append(nombreParaMostrar + ": " + m.getContenido() + "\n");
                         }
                     }
                 }
@@ -137,7 +140,7 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
             if (contactoSeleccionado != null) {
                 contactoSeleccionado = contactoSeleccionado.replace(" (nuevo)", "");
                 enviarMensaje(contenido, contactoSeleccionado);
-                areaMensajes.append("Yo: " + contenido + "\n");
+                areaMensajes.append(usuario.getNickname() +": " + contenido + "\n");
                 areaTextoMensaje.setText("");
             } else {
                 JOptionPane.showMessageDialog(this, "Por favor, selecciona un contacto.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -149,7 +152,7 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
         String remitente = mensaje.getNicknameRemitente();
         String contactoSeleccionado = listaContactos.getSelectedValue();
 
-        Contacto contacto = usuario.buscaContacto(remitente);
+        Contacto contacto = usuario.buscaContactoPorNombre(remitente);
         if (contacto == null) {
             String ip = soc.getInetAddress().getHostAddress();
             int puerto = mensaje.getPuertoRemitente();
@@ -157,39 +160,39 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
             usuario.agregarContacto(contacto);
         }
 
-        Chat chat = usuario.buscaChat(remitente);
+        Chat chat = usuario.buscaChat(contacto.getNombre());
         if (chat == null) {
             chat = new Chat(contacto);
             usuario.agregarChat(chat);
         }
 
-        usuario.agregarMensaje(mensaje, remitente);
+        usuario.agregarMensaje(mensaje, contacto.getNombre());
 
-        if (contactoSeleccionado != null && contactoSeleccionado.replace(" (nuevo)", "").equals(remitente)) {
-            areaMensajes.append(remitente + ": " + mensaje.getContenido() + "\n");
+        if (contactoSeleccionado != null && contactoSeleccionado.replace(" (nuevo)", "").equals(contacto.getNombre())) {
+            areaMensajes.append(contacto.getNombre() + ": " + mensaje.getContenido() + "\n");
             
         } else {
         	reproducirSonido(); // Usá la ruta relativa dentro del .jar
             boolean encontrado = false;
             for (int i = 0; i < modeloContactos.size(); i++) {
                 String nombreLista = modeloContactos.get(i);
-                if (nombreLista.startsWith(remitente)) {
+                if (nombreLista.replace(" (nuevo)", "").equals(contacto.getNombre())) {
                     if (!nombreLista.contains("(nuevo)")) {
-                        modeloContactos.set(i, remitente + " (nuevo)");
+                        modeloContactos.set(i, contacto.getNombre() + " (nuevo)");
                     }
                     encontrado = true;
                     break;
                 }
             }
             if (!encontrado) {
-                modeloContactos.addElement(remitente + " (nuevo)");
+                modeloContactos.addElement(contacto.getNombre() + " (nuevo)");
             }
         }
     }
 
     private void enviarMensaje(String contenidoMensaje, String contacto) {
         try {
-            Contacto contactoDestino = usuario.buscaContacto(contacto);
+            Contacto contactoDestino = usuario.buscaContactoPorNombre(contacto);
             Mensaje mensaje = new Mensaje(contenidoMensaje, usuario.getNickname(), usuario.getPuerto(), contactoDestino.getDireccionIP(), contactoDestino.getPuerto(), contactoDestino.getNickname());
             Socket socket = new Socket("localhost", 10000);
             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
@@ -204,64 +207,60 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
     }
 
     public void abrirVentanaAgregarContacto(Map<String, Usuario> listaNicknames) {
-        JDialog dialog = new JDialog(this, "Nuevo Contacto", true);
-        dialog.setSize(400, 220);
+        JDialog dialog = new JDialog(this, "Directorio de Usuarios", true);
+        dialog.setSize(400, 300);
         dialog.setLocationRelativeTo(this);
         dialog.setLayout(new BorderLayout());
 
-        JPanel panelCampos = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 10, 5, 10);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.gridx = 0;
-        gbc.gridy = 0;
+        DefaultListModel<String> modeloListaUsuarios = new DefaultListModel<>();
+        for (String nickname : listaNicknames.keySet()) {
+            boolean yaAgendado = false;
+            for (Contacto c : usuario.getAgenda().values()) {
+                if (c.getNickname().equals(nickname)) {
+                    yaAgendado = true;
+                    break;
+                }
+            }
+            if (!nickname.equals(usuario.getNickname()) && !yaAgendado) {
+                modeloListaUsuarios.addElement(nickname);
+            }
+        }
 
-        JLabel labelNombre = new JLabel("Nombre / Alias:");
-        JTextField campoNombre = new JTextField(20);
-        JLabel labelPuerto = new JLabel("Número de Puerto:");
-        JTextField campoPuerto = new JTextField(20);
-        JLabel labelIP = new JLabel("Dirección IP:");
-        JTextField campoIP = new JTextField(20);
+        JList<String> listaUsuarios = new JList<>(modeloListaUsuarios);
+        JScrollPane scrollPane = new JScrollPane(listaUsuarios);
 
-        panelCampos.add(labelNombre, gbc);
-        gbc.gridx = 1;
-        panelCampos.add(campoNombre, gbc);
+        JButton btnAgendar = new JButton("Agendar Usuario");
+        btnAgendar.addActionListener(e -> {
+            String nicknameSeleccionado = listaUsuarios.getSelectedValue();
+            if (nicknameSeleccionado != null) {
+                Usuario usuarioSeleccionado = listaNicknames.get(nicknameSeleccionado);
+                
+             // Preguntar por un nombre de contacto personalizado
+                String nombrePersonalizado = (String) JOptionPane.showInputDialog(
+                		dialog, 
+                        "Ingrese un nombre para agendar a " + nicknameSeleccionado + ":",
+                        "Nuevo nombre de contacto",
+                        JOptionPane.PLAIN_MESSAGE,
+                        null,
+                        null,
+                        nicknameSeleccionado
+                        );
+                if (nombrePersonalizado != null && !nombrePersonalizado.trim().isEmpty()) {
 
-        gbc.gridx = 0;
-        gbc.gridy++;
-        panelCampos.add(labelPuerto, gbc);
-        gbc.gridx = 1;
-        panelCampos.add(campoPuerto, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy++;
-        panelCampos.add(labelIP, gbc);
-        gbc.gridx = 1;
-        panelCampos.add(campoIP, gbc);
-
-        JButton btnAgregar = new JButton("Agregar Contacto");
-        btnAgregar.addActionListener(e -> {
-            String nombre = campoNombre.getText();
-            String puerto = campoPuerto.getText();
-            String ip = campoIP.getText();
-
-            if (!nombre.isEmpty() && !puerto.isEmpty() && !ip.isEmpty()) {
-                try {
-                    int puertoInt = Integer.parseInt(puerto);
-                 // Verificar si el contacto ya existe por nombre
-                    Contacto existentePorNombre = usuario.buscaContacto(nombre);
+                    // Verificar si ya existe un contacto con ese nombre
+                    Contacto existentePorNombre = usuario.buscaContactoPorNombre(nombrePersonalizado.trim());
                     if (existentePorNombre != null) {
                         JOptionPane.showMessageDialog(dialog,
-                            "Ya existe un contacto con ese nombre.",
-                            "Contacto duplicado",
-                            JOptionPane.ERROR_MESSAGE);
+                                "Ya existe un contacto con ese nombre.",
+                                "Contacto duplicado",
+                                JOptionPane.ERROR_MESSAGE);
                         return;
                     }
 
                     // Verificar si ya existe un contacto con esa IP y puerto
                     boolean existePorIpYPuerto = false;
                     for (Contacto c : usuario.getAgenda().values()) {
-                        if (c.getDireccionIP().equals(ip) && c.getPuerto() == puertoInt) {
+                        if (c.getDireccionIP().equals(usuarioSeleccionado.getIp()) && c.getPuerto() == usuarioSeleccionado.getPuerto()) {
                             existePorIpYPuerto = true;
                             break;
                         }
@@ -269,33 +268,42 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
 
                     if (existePorIpYPuerto) {
                         JOptionPane.showMessageDialog(dialog,
-                            "Ya existe un contacto con esa IP y puerto.",
-                            "Contacto duplicado",
-                            JOptionPane.ERROR_MESSAGE);
+                                "Ya existe un contacto con esa IP y puerto.",
+                                "Contacto duplicado",
+                                JOptionPane.ERROR_MESSAGE);
                         return;
                     }
-                    Contacto nuevoContacto = new Contacto(nombre, ip, puertoInt, nombre);   // CORREGIR NOMBRE DEL DIRECTORIO
+
+                    // Si todo bien, crear el nuevo contacto
+                    Contacto nuevoContacto = new Contacto(
+                            nombrePersonalizado.trim(), // Usamos el nombre que eligió
+                            usuarioSeleccionado.getIp(),
+                            usuarioSeleccionado.getPuerto(),
+                            usuarioSeleccionado.getNickname()
+                    );
+
                     Chat nuevoChat = new Chat(nuevoContacto);
                     usuario.agregarChat(nuevoChat);
                     usuario.agregarContacto(nuevoContacto);
-                    modeloContactos.addElement(nombre);
-                    listaContactos.setSelectedValue(nombre, true); // Seleccionar el nuevo contacto
-                    areaTextoMensaje.requestFocusInWindow(); // Seleccionar el área de mensajes
+                    modeloContactos.addElement(nombrePersonalizado.trim());
+                    listaContactos.setSelectedValue(nombrePersonalizado.trim(), true);
+                    areaTextoMensaje.requestFocusInWindow();
                     dialog.dispose();
-                } catch (NumberFormatException ex) {
-                    JOptionPane.showMessageDialog(dialog, "El puerto debe ser un número entero.", "Error", JOptionPane.ERROR_MESSAGE);
+
+                } else {
+                    JOptionPane.showMessageDialog(dialog, "Debe ingresar un nombre válido.", "Error", JOptionPane.ERROR_MESSAGE);
                 }
             } else {
-                JOptionPane.showMessageDialog(dialog, "Por favor, complete todos los campos.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(dialog, "Debe seleccionar un usuario de la lista.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
-        JPanel panelBoton = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        panelBoton.add(btnAgregar);
+        JPanel panelBoton = new JPanel();
+        panelBoton.add(btnAgendar);
 
-        dialog.add(panelCampos, BorderLayout.CENTER);
+        dialog.add(scrollPane, BorderLayout.CENTER);
         dialog.add(panelBoton, BorderLayout.SOUTH);
-        dialog.setResizable(false);
+
         dialog.setVisible(true);
     }
 

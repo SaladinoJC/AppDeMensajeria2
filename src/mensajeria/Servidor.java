@@ -16,7 +16,7 @@ public class Servidor extends JFrame {
     private int puertoRegistros = 10001;
     private int puertoDirectorio = 10002;
     private String ip;
-
+    private final Map<String, Object> locks = new HashMap<>(); // Para sincronizar por usuario
     private ServerSocket serverSocketRegistros;
     private ServerSocket serverSocketMensajes;
     private ServerSocket serverSocketDirectorio;
@@ -41,8 +41,8 @@ public class Servidor extends JFrame {
         
         
         // Iniciar el servidor en un hilo aparte
-        new Thread(() -> iniciarServidorRegistros(puertoRegistros)).start();
         new Thread(() -> iniciarServidorMensajes(puertoMensajes)).start();
+        new Thread(() -> iniciarServidorRegistros(puertoRegistros)).start();
         new Thread(() -> iniciarServidorDirectorio(puertoDirectorio)).start();
     }
 
@@ -82,31 +82,37 @@ public class Servidor extends JFrame {
             serverSocketDirectorio = new ServerSocket(puerto); 
             log("Servidor de Directorio iniciado en el puerto " + puerto);
             while (true) {
-                Socket socketRecibePedido = serverSocketMensajes.accept();
+                Socket socketRecibePedido = serverSocketDirectorio.accept();
+                //log("estoy aceptando el socket de directorio");
                 ObjectOutputStream out = new ObjectOutputStream(socketRecibePedido.getOutputStream());
                 out.flush();
                 out.writeObject(this.directorioUsuarios);
                 out.close();
             }
         } catch (IOException e) {
-            log("Error al iniciar el servidor de directorio, linea 80: " + e.getMessage());
+            log("Error al iniciar el servidor de directorio, linea 92: " + e.getMessage());
         }
     }
 
     
     private void manejarMensajes(Mensaje mensaje) {
-    	try {
-            Socket socket2 = new Socket(mensaje.getIpDestinatario(), mensaje.getPuertoDestinatario());
-            ObjectOutputStream out = new ObjectOutputStream(socket2.getOutputStream());
-            out.flush();
-            out.writeObject(mensaje);
-            out.close();
-            //log("Mensaje enviado: " + mensaje.getContenido());
-        } catch (IOException e) {
-        		this.MapPendientes.get(mensaje.getNicknameDestinatario()).addLast(mensaje);
-        }
-     	
+        new Thread(() -> {
+            try {
+                Socket socket2 = new Socket(mensaje.getIpDestinatario(), mensaje.getPuertoDestinatario());
+                ObjectOutputStream out = new ObjectOutputStream(socket2.getOutputStream());
+                out.flush();
+                out.writeObject(mensaje);
+                out.close();
+                // log("Mensaje enviado: " + mensaje.getContenido());
+            } catch (IOException e) {
+                synchronized (this) {
+                    this.MapPendientes.get(mensaje.getNicknameDestinatario()).addLast(mensaje);
+                   // log("La lista de pendientes es " + this.MapPendientes);
+                }
+            }
+        }).start();
     }
+    
     
     private void manejarRegistros(Usuario usuario) {
          {
@@ -127,11 +133,11 @@ public class Servidor extends JFrame {
             
     private void enviarMensajesPendientes(String nickname) {
             LinkedList<Mensaje> pendientes = MapPendientes.get(nickname);
+            if (pendientes==null) return;
+            synchronized(pendientes) {
             while (!pendientes.isEmpty()) {
             	Mensaje mensaje = pendientes.getFirst();
-            	//log("el mensaje sacado de la lista es " + mensaje.getContenido());
-                
-                          
+            	//log("el mensaje sacado de la lista es " + mensaje.getContenido());    
                 try {
                     Socket socket2 = new Socket(mensaje.getIpDestinatario(), mensaje.getPuertoDestinatario());
                     ObjectOutputStream out = new ObjectOutputStream(socket2.getOutputStream());
@@ -140,16 +146,18 @@ public class Servidor extends JFrame {
                     out.close();
                     //log("llego el mensaje" + mensaje.getContenido());
                 } catch (IOException e) {
-                		this.MapPendientes.get(mensaje.getNicknameDestinatario()).addLast(mensaje);
+                		log("entro a la excepcion");
+                		//this.MapPendientes.get(mensaje.getNicknameDestinatario()).addLast(mensaje);
                 }
-                try {
-					Thread.sleep(200);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+                //try {
+					//Thread.sleep(800);
+				//} catch (InterruptedException e) {
+				//	// TODO Auto-generated catch block
+				//	e.printStackTrace();
+				//}
 
                 pendientes.removeFirst();
+            }
             }
        
     }
