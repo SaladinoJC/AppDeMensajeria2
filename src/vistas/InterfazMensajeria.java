@@ -153,8 +153,8 @@ public class InterfazMensajeria extends JFrame implements InterfazVista {
     public void recibirMensaje(Mensaje mensaje, Socket soc, Usuario usuario) {
         String remitente = mensaje.getNicknameRemitente();
         String contactoSeleccionado = listaContactos.getSelectedValue();
-
-        Contacto contacto = usuario.buscaContactoPorNombre(remitente);
+        
+        Contacto contacto = usuario.buscaContactoPorNickname(remitente);
         if (contacto == null) {
             String ip = soc.getInetAddress().getHostAddress();
             int puerto = mensaje.getPuertoRemitente();

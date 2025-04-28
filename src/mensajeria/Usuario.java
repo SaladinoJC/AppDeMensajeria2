@@ -84,6 +84,16 @@ public class Usuario implements Serializable {
         return null; // Si no lo encuentra
     }
 
+    public Contacto buscaContactoPorNickname(String nickname) {
+        for (Contacto contacto : agenda.values()) {
+            if (contacto.getNickname().equals(nickname)) {
+                return contacto;
+            }
+        }
+        return null; // Si no lo encuentra
+    }
+    
+    
     public Chat buscaChat(String nombreContacto) {
         return conversaciones.get(nombreContacto);
     }
